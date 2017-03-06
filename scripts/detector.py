@@ -8,12 +8,16 @@ import numpy as np
 import cv2
 import glob
 
+#work around because of strange behaviour of StandardScaler
+import warnings
+warnings.filterwarnings("ignore", category=DeprecationWarning) 
+
 import matplotlib.pyplot as plt
 
 class CarDetector:
 
     def __init__(self):
-        self.clf = svm.SVC(kernel = "linear")
+        self.clf = svm.SVC(kernel = "rbf")
 
     def train(self, train_data, train_labels):
         self.clf.fit(train_data, train_labels)
@@ -24,7 +28,9 @@ class CarDetector:
         Classify list of images.
         """
         features = [FeatureExtractor.get_image_features(image) for image in image_list]
-        normalized_features = FeatureExtractor.normalize_features(features)
+        normalized_features = [FeatureExtractor.normalize_features(feature) for feature in features ]
+
+        #classification = [self.clf.predict(x) for x in normalized_features]
         classification = self.clf.predict(normalized_features)
         return classification
 
@@ -70,12 +76,10 @@ class CarDetector:
                 img_part = image[y_start:y_end, x_start:x_end, :]
                 image_parts.append(img_part)
                 subframe_positions.append([x_start, y_start, x_end, y_end])
-                results = self.is_car(img_part)
-                if (results==True):
-                    rect_points.append([x_start, y_start, x_end, y_end])
-        #for i in range(len(results)):
-            #if (results[i] == True):
-                #rect_points.append(subframe_positions[i])
+        results = self.classify(image_parts)
+        for i in range(len(results)):
+            if (results[i] == True):
+                rect_points.append(subframe_positions[i])
 
         return rect_points
 
@@ -90,6 +94,18 @@ class CarDetector:
             min_sliding_window = (int(min_sliding_window[0] * scale), int(min_sliding_window[1] * scale))
         return all_window_rect_points
 
+    @staticmethod
+    def get_heatmap(bBoxes, shape):
+
+        heatmap = np.zeros(shape)
+        for scaled_bBoxes in bBoxes:
+            for bBox in scaled_bBoxes:
+                x_start = bBox[0]
+                y_start = bBox[1]
+                x_end = bBox[2]
+                y_end = bBox[3]
+                heatmap[y_start:y_end, x_start:x_end] = heatmap[y_start:y_end, x_start:x_end] + 1
+        return heatmap
 
     @staticmethod
     def load(filename="svc.model"):
@@ -159,30 +175,3 @@ class FeatureExtractor:
         # Apply the scaler to X
         scaled_features = features_scaler.transform(features)
         return scaled_features
-
-                   
-def display_image(img1, title1 = "Image"):
-    fig = plt.figure()
-    a=fig.add_subplot(1,1,1)
-    imgplot = plt.imshow(img1)
-    a.set_title(title1)
-    thismanager = plt.get_current_fig_manager()
-    thismanager.window.setGeometry(0, 0, 640, 360)
-    plt.show()
-
-def draw_rectangles(image, rectangles, color=(255,0,0)):
-    for scaled_bBoxes in rectangles:
-        color = (random.randint(0,255), random.randint(0,255), random.randint(0,255))
-        for rect in scaled_bBoxes:        
-            cv2.rectangle(image, (rect[0],rect[1]), (rect[2],rect[3]), color, 2)
-    return image
-
-
-def test(image_name):
-    detector = CarDetector.load()
-    image = cv2.imread("./test_images/" + image_name)
-    imageRGB = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    bBoxes = detector.detect_multiscale(image, scale=1.5)
-    output = draw_rectangles(image, bBoxes)
-    detectedRGB = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
-    display_image(detectedRGB)
