@@ -1,4 +1,6 @@
 from detector import *
+#debug
+#np.set_printoptions(threshold=np.nan)
 
 def display_image(img1, title1 = "Image"):
     fig = plt.figure()
@@ -30,14 +32,18 @@ def test(image_name):
     detector = CarDetector.load()
     image = cv2.imread("./test_images/" + image_name)
     imageRGB = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    bBoxes = detector.detect_multiscale(image, scale=1.5, min_sliding_window=(32,32), max_sliding_window=(256,256))
+    bBoxes = detector.detect_multiscale(image, scale=1.5, min_sliding_window=(64,64), max_sliding_window=(128,128))
 
     heatmap = CarDetector.get_heatmap(bBoxes, image.shape[0:2])
-
-    print(np.where(heatmap>0))
     display_heatmap(heatmap)
+    #print (heatmap)
+    
+    contours = CarDetector.get_countours_of_heatmap(heatmap)
 
-    output = draw_rectangles(image, bBoxes)
+    
+    output = CarDetector.heatmap_contours_to_bBoxes(image, contours)
+
+    #output = draw_rectangles(image, bBoxes)
     detectedRGB = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
     display_image(detectedRGB)
 

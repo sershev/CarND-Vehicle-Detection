@@ -1,7 +1,6 @@
 from sklearn import svm
 from sklearn.externals import joblib
-from skimage.feature import hog
-from sklearn.preprocessing import StandardScaler
+from features import FeatureExtractor
 #from scipy.ndimage import imread
 import random
 import numpy as np
@@ -97,7 +96,7 @@ class CarDetector:
     @staticmethod
     def get_heatmap(bBoxes, shape):
 
-        heatmap = np.zeros(shape)
+        heatmap = np.zeros(shape).astype(int)
         for scaled_bBoxes in bBoxes:
             for bBox in scaled_bBoxes:
                 x_start = bBox[0]
@@ -106,6 +105,23 @@ class CarDetector:
                 y_end = bBox[3]
                 heatmap[y_start:y_end, x_start:x_end] = heatmap[y_start:y_end, x_start:x_end] + 1
         return heatmap
+
+    @staticmethod
+    def get_countours_of_heatmap(heatmap):
+        heatmap_u8c1 = heatmap.astype(np.uint8)
+        ret, thresh = cv2.threshold(heatmap_u8c1,2,255,cv2.THRESH_BINARY)
+        _, contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        #print("Cnts: ", len(contours_hierarchy))
+        return contours
+
+    @staticmethod
+    def heatmap_contours_to_bBoxes(image, contours):
+        for cnt in contours:
+            x,y,w,h = cv2.boundingRect(cnt)
+            print(x,y,w,h)
+            cv2.rectangle(image,(x,y),(x+w,y+h),(0,0,255),2)
+        return image
+
 
     @staticmethod
     def load(filename="svc.model"):
@@ -135,43 +151,3 @@ class CarDetector:
         normalized_features = FeatureExtractor.normalize_features(features)
         detector.train(normalized_features, labels)
         return detector
-
-
-
-class FeatureExtractor:
-
-    @staticmethod
-    def color_hist(img, nbins=32, bins_range=(0, 256)):
-        # Compute the histogram of the color channels separately
-        channel1_hist = np.histogram(img[:,:,0], bins=nbins, range=bins_range)
-        channel2_hist = np.histogram(img[:,:,1], bins=nbins, range=bins_range)
-        channel3_hist = np.histogram(img[:,:,2], bins=nbins, range=bins_range)
-        # Concatenate the histograms into a single feature vector
-        hist_features = np.concatenate((channel1_hist[0], channel2_hist[0], channel3_hist[0]))
-        # Return the individual histograms, bin_centers and feature vector
-        return hist_features
-
-    @staticmethod
-    def get_image_features(image, size = (32,32), orient=9, pixels_per_cell=8, cells_per_block=2):
-        feature_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-        gray_feature_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
-        resized_feature_image = cv2.resize(feature_image, size)
-        resized_feature_image_hist = FeatureExtractor.color_hist(resized_feature_image)
-        resized_gray_feature_image = cv2.resize(gray_feature_image, size)
-        color_feature_vector = resized_feature_image_hist
-
-        hog_features_vector = hog(resized_gray_feature_image, orientations=orient, pixels_per_cell=(pixels_per_cell, pixels_per_cell),
-                       cells_per_block=(cells_per_block, cells_per_block), transform_sqrt=False, 
-                       visualise=False, feature_vector=True)
-        feature_vector = np.concatenate((color_feature_vector, hog_features_vector), axis=0)
-        return feature_vector
-
-    @staticmethod
-    def normalize_features(features):
-        # X = np.vstack((car_features, notcar_features)).astype(np.float64)                        
-        # Fit a per-column scaler
-        features_scaler = StandardScaler().fit(features)
-        # Apply the scaler to X
-        scaled_features = features_scaler.transform(features)
-        return scaled_features
