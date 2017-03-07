@@ -109,7 +109,7 @@ class CarDetector:
     @staticmethod
     def get_countours_of_heatmap(heatmap):
         heatmap_u8c1 = heatmap.astype(np.uint8)
-        ret, thresh = cv2.threshold(heatmap_u8c1,2,255,cv2.THRESH_BINARY)
+        ret, thresh = cv2.threshold(heatmap_u8c1,0,255,cv2.THRESH_BINARY)
         _, contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         #print("Cnts: ", len(contours_hierarchy))
         return contours
