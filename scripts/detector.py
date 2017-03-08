@@ -85,13 +85,23 @@ class CarDetector:
 
     def detect_multiscale(self, image, scale=1.05, min_sliding_window=(32,32), max_sliding_window=(256,256)):
         all_window_rect_points = []
-        print(min_sliding_window[0], max_sliding_window[0])
         while ((min_sliding_window[0] <= max_sliding_window[0]) & (min_sliding_window[1] <= max_sliding_window[1])):
             stride = (int)(min_sliding_window[0]/2)
             bBoxes = self.detect(image, object_size=min_sliding_window, stride=stride)
             all_window_rect_points.append(bBoxes)
             min_sliding_window = (int(min_sliding_window[0] * scale), int(min_sliding_window[1] * scale))
         return all_window_rect_points
+
+    def detect_full_pipeline(self, rgb_image):
+        bBoxes = self.detect_multiscale(rgb_image, scale=1.5, min_sliding_window=(32,32), max_sliding_window=(128,128))
+
+        heatmap = CarDetector.get_heatmap(bBoxes, rgb_image.shape[0:2])
+        #from test import display_heatmap
+        #display_heatmap(heatmap)
+        contours = CarDetector.get_countours_of_heatmap(heatmap)      
+        output = CarDetector.heatmap_contours_to_bBoxes(rgb_image, contours)
+
+        return output
 
     @staticmethod
     def get_heatmap(bBoxes, shape):
@@ -109,7 +119,7 @@ class CarDetector:
     @staticmethod
     def get_countours_of_heatmap(heatmap):
         heatmap_u8c1 = heatmap.astype(np.uint8)
-        ret, thresh = cv2.threshold(heatmap_u8c1,0,255,cv2.THRESH_BINARY)
+        ret, thresh = cv2.threshold(heatmap_u8c1,2,255,cv2.THRESH_BINARY)
         _, contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         #print("Cnts: ", len(contours_hierarchy))
         return contours
@@ -118,7 +128,6 @@ class CarDetector:
     def heatmap_contours_to_bBoxes(image, contours):
         for cnt in contours:
             x,y,w,h = cv2.boundingRect(cnt)
-            print(x,y,w,h)
             cv2.rectangle(image,(x,y),(x+w,y+h),(0,0,255),2)
         return image
 
@@ -138,16 +147,13 @@ class CarDetector:
         features = []
         labels = []
         for filename in glob.iglob(pos_dir + '/**/*.png', recursive=True):
-            #print("\t- file {0} ".format(filename))
-            image = cv2.imread(filename)
-            features.append(FeatureExtractor.get_image_features(image))
-            labels.append(1)
+            features, labels = FeatureExtractor.add_feature(features, labels, filename, 1)
+   
         for filename in glob.iglob(neg_dir + '/**/*.png', recursive=True):
-            #print("\t- file {0} ".format(filename))
-            image = cv2.imread(filename)
-            features.append(FeatureExtractor.get_image_features(image))
-            labels.append(0)
+            features, labels = FeatureExtractor.add_feature(features, labels, filename, 0)
+
         detector = CarDetector()
         normalized_features = FeatureExtractor.normalize_features(features)
         detector.train(normalized_features, labels)
         return detector
+

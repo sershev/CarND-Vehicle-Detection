@@ -17,9 +17,9 @@ class FeatureExtractor:
         return hist_features
 
     @staticmethod
-    def get_image_features(image, size = (32,32), orient=9, pixels_per_cell=8, cells_per_block=2):
-        feature_image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-        gray_feature_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    def get_image_features(image_rgb, size = (32,32), orient=9, pixels_per_cell=8, cells_per_block=2):
+        feature_image = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2HSV)
+        gray_feature_image = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
 
         resized_feature_image = cv2.resize(feature_image, size)
         resized_feature_image_hist = FeatureExtractor.color_hist(resized_feature_image)
@@ -40,3 +40,11 @@ class FeatureExtractor:
         # Apply the scaler to X
         scaled_features = features_scaler.transform(features)
         return scaled_features
+
+    @staticmethod
+    def add_feature(features_buffer, labels_buffer, filename, feature_class):
+        image_bgr = cv2.imread(filename)
+        image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
+        features_buffer.append(FeatureExtractor.get_image_features(image_rgb))
+        labels_buffer.append(feature_class)
+        return features_buffer, labels_buffer
