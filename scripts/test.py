@@ -39,7 +39,7 @@ def test(image_name):
     #print (heatmap)
     
     contours = CarDetector.get_countours_of_heatmap(heatmap)
-    output = CarDetector.heatmap_contours_to_bBoxes(image, contours)
+    output = CarDetector.heatmap_contours_to_bBoxes(image, contours, heatmap)
     
     display_image(output)
 

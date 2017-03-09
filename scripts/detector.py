@@ -99,7 +99,7 @@ class CarDetector:
         #from test import display_heatmap
         #display_heatmap(heatmap)
         contours = CarDetector.get_countours_of_heatmap(heatmap)      
-        output = CarDetector.heatmap_contours_to_bBoxes(rgb_image, contours)
+        output = CarDetector.heatmap_contours_to_bBoxes(rgb_image, contours, heatmap)
 
         return output
 
@@ -119,16 +119,18 @@ class CarDetector:
     @staticmethod
     def get_countours_of_heatmap(heatmap):
         heatmap_u8c1 = heatmap.astype(np.uint8)
-        ret, thresh = cv2.threshold(heatmap_u8c1,2,255,cv2.THRESH_BINARY)
+        ret, thresh = cv2.threshold(heatmap_u8c1, 0,255,cv2.THRESH_BINARY)
         _, contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         #print("Cnts: ", len(contours_hierarchy))
         return contours
 
     @staticmethod
-    def heatmap_contours_to_bBoxes(image, contours):
+    def heatmap_contours_to_bBoxes(image, contours, heatmap, threshold=3):
         for cnt in contours:
             x,y,w,h = cv2.boundingRect(cnt)
-            cv2.rectangle(image,(x,y),(x+w,y+h),(0,0,255),2)
+            local_max = np.argmax(heatmap[y:y+h,x:x+w])
+            if (local_max > threshold):
+                cv2.rectangle(image,(x,y),(x+w,y+h),(0,0,255),2)
         return image
 
 
