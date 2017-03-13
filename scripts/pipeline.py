@@ -13,4 +13,9 @@ def pipeline(frame):
 clip = VideoFileClip(video_to_process)
 video_output = "out_" + video_to_process
 frame = clip.fl_image(pipeline)
-frame.write_videofile(video_output, audio=False)
+
+from pycallgraph import PyCallGraph
+from pycallgraph.output import GraphvizOutput
+
+with PyCallGraph(output=GraphvizOutput()):
+	frame.write_videofile(video_output, audio=False)
