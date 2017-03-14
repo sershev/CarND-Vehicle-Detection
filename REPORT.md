@@ -45,6 +45,12 @@ I then explored different color spaces and different `skimage.hog()` parameters 
 
 Here is an example using the `GREY` single channel color space and HOG parameters of `orientations=18`, `pixels_per_cell=(8, 8)` and `cells_per_block=(2, 2)`:
 
+####Update
+ After experimenting for a while I cahnged:
+ * using YUV colorspace 3 channel for HOG features, instead `GREY` single channel
+ * orient to 24, which provided more accurate results.
+
+
 
 ![Car and hog image][image2]  ![Non car and hog image.][image22]
 
@@ -57,11 +63,21 @@ Better it would be to run a benchmark for different parameters.
 
 I trained a an SVM using rbf kernel. The code for training is in `scripts/detector.py` in `CarDetector` class (in `from_dirs()` for dataset). I also implemented `save()` and `load()` to methods to make the classifier usable later.
 
+
+####Update
+ * Kernel changed from `rbf` to `linear`
+ * For some reason I get very bad results trying (3 channel HOG with rbf kernel) or (one (gray) channel HOG with linear kernel)
+ * but 3 channel HOG with linear kernel works well.
+ * svc decision_function is used to require the classiefier to be more confident to remove false positives. (I tryed different values and ended with 0.8 where 0.0 is the threshold by default)
+
 ### Sliding Window Search
 
 #### 1. Describe how (and identify where in your code) you implemented a sliding window search.  How did you decide what scales to search and how much to overlap windows?
 
 I decided to search in the bottom half of the image (with a bit padding at most down, since there is a part of own car). The sliding window increeses each step by a percentage value until it becomes maximal size. For window overlapping I choose 50%. The code for this is in `scripts/detector.py` in `detect_multiscale()` method of `CarDetector` class. 
+
+####Update
+ * I decreased scale factor, so more different scales are used.
 
 As result we het image like following:
 
@@ -78,13 +94,16 @@ Ultimately I searched on two scales using GRAY 1-channel HOG features plus histo
 
 I also used different options like different channels, more fetures, but the results were not so well.
 
+####Update
+ * I wrote new function `x_out_of_n_heatmaps()` in `detector.py` in `CarDetector` calss. This function now checks if some region was detected in at least x out of n frames. Erlier I checked if region was detected in all past n frames which leads to many false negatives. 
+
 ---
 
 ### Video Implementation
 
 #### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (somewhat wobbly or unstable bounding boxes are ok as long as you are identifying the vehicles most of the time with minimal false positives.)
 Here's a [link to my video result](./out_project_video.mp4)
-# TODO
+
 
 #### 2. Describe how (and identify where in your code) you implemented some kind of filter for false positives and some method for combining overlapping bounding boxes.
 
@@ -110,3 +129,6 @@ I replaced `np.histogram()` function from lesson by `cv2.calcHist()` since it is
 
 The pipeline may fail very easy for many different types of vehicles, like microbus, police car, maybe smart car. Any other road traffic user like bycicle can't be detected by this classifier. Different light conditions (darknes, tunnel)
 can break the detection. This is actually very basic pipeline.
+
+####Update
+ * It would make sense to add tracker component to have more stable results.

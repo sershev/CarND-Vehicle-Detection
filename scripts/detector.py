@@ -25,11 +25,11 @@ class CarDetector:
     # Methods
 
     def __init__(self):
-        self.clf = svm.SVC(kernel = "rbf")
+        self.clf = svm.SVC(kernel = "linear")
         self.heatmaps = []
         self.frame_counter = 0
-        for i in range(3):
-            self.heatmaps.append(np.ones((720,1280)))
+        for i in range(10):
+            self.heatmaps.append(np.zeros((720,1280)))
 
 
     def train(self, train_data, train_labels):
@@ -44,8 +44,12 @@ class CarDetector:
         features = [FeatureExtractor.get_image_features(image) for image in image_list]
         normalized_features = [FeatureExtractor.normalize_features(feature) for feature in features ]
 
-        #classification = [self.clf.predict(x) for x in normalized_features]
-        classification = self.clf.predict(normalized_features)
+        #classification = self.clf.predict(normalized_features)
+        classification = self.clf.decision_function(normalized_features)
+
+        classification[classification<0.8] = 0
+        classification[classification>=0.8] = 1
+
         return classification
 
 
@@ -73,7 +77,7 @@ class CarDetector:
         self.clf = joblib.load(filename) 
 
 
-    def detect(self, image, object_size=(32,32), stride=16):
+    def detect(self, image, object_size=(32,32), stride=8):
         """
         Detect all objects in a image.
         """
@@ -116,8 +120,8 @@ class CarDetector:
         return all_window_rect_points
 
 
-    def detect_full_pipeline(self, rgb_image, min_sliding_window=(64,64), max_sliding_window=(128,128)):
-        bBoxes = self.detect_multiscale(rgb_image, scale=1.5, min_sliding_window=min_sliding_window, max_sliding_window=max_sliding_window)
+    def detect_full_pipeline(self, rgb_image, min_sliding_window=(64,64), max_sliding_window=(256,256)):
+        bBoxes = self.detect_multiscale(rgb_image, scale=1.25, min_sliding_window=min_sliding_window, max_sliding_window=max_sliding_window)
 
         heatmap = CarDetector.get_heatmap(bBoxes, rgb_image.shape[0:2])
         heatmap_contours = CarDetector.get_countours_of_heatmap(heatmap)
@@ -126,9 +130,11 @@ class CarDetector:
         self.heatmaps.append(clean_heatmap)
         self.heatmaps.pop(0)
 
-        combined_heatmap_binary = np.all(self.heatmaps, axis=0)
-        combined_heatmap = np.zeros_like(clean_heatmap)
-        combined_heatmap[combined_heatmap_binary == True] = clean_heatmap[combined_heatmap_binary == True]
+        #combined_heatmap_binary = np.all(self.heatmaps, axis=0)
+        #combined_heatmap = np.zeros_like(clean_heatmap)
+        #combined_heatmap[combined_heatmap_binary == True] = clean_heatmap[combined_heatmap_binary == True]
+
+        combined_heatmap = self.x_out_of_n_heatmaps(3)
 
         from test import display_heatmap
         from test import display_image
@@ -144,16 +150,25 @@ class CarDetector:
         #display_image(output)
         #compare_before_after(combined_heatmap, output, "Heatmap", "Output image")
 
-
-
         return output
+
+    def x_out_of_n_heatmaps(self, x):
+        binary_heatmaps = []
+        for hm in self.heatmaps:
+            ret, thresh = cv2.threshold(hm.astype(np.uint8), 0, 1,cv2.THRESH_BINARY)
+            binary_heatmaps.append(thresh.astype(np.int8))
+        sumed_heatmaps = np.sum(binary_heatmaps, axis=0)
+        final_heatmap = np.subtract(sumed_heatmaps, x)
+        final_heatmap[final_heatmap<0] = 0
+
+        return final_heatmap.astype(np.uint8)
 
     # END Methods
 
     # Static Methods
 
     @staticmethod
-    def clean_heatmap(rgb_image, heatmap_contours, heatmap, threshold=2):
+    def clean_heatmap(rgb_image, heatmap_contours, heatmap, threshold=0):
         for cnt in heatmap_contours:
             x,y,w,h = cv2.boundingRect(cnt)
             heatmap_crop = heatmap[y:y+h,x:x+w]
@@ -162,10 +177,12 @@ class CarDetector:
             local_max = heatmap_crop[center_index[0], center_index[1]]
 
             aspectRatioCheck = (w < 2 * h) & (h < 1.5 * w)
+            sizeCheck = (y >= 580) & (h > 100) | y < 580
+            sizeCheck2 = (y>360)
             ret, thresh = cv2.threshold(heatmap_crop.astype(np.uint8), 0, 1,cv2.THRESH_BINARY)
-            bBoxIsFilledCheck = (np.sum(thresh) >= 0.7*w*h)
+            bBoxIsFilledCheck = True#(np.sum(thresh) >= 0.7*w*h)
 
-            if not((local_max > threshold) & bBoxIsFilledCheck & aspectRatioCheck):
+            if not((local_max > threshold) & bBoxIsFilledCheck & aspectRatioCheck & sizeCheck & sizeCheck2):
                 heatmap[y:y+h,x:x+w]=0
 
         return heatmap
@@ -194,26 +211,28 @@ class CarDetector:
 
 
     @staticmethod
-    def heatmap_contours_to_bBoxes(image, contours, heatmap, threshold=2):
+    def heatmap_contours_to_bBoxes(image, contours, heatmap, threshold=0):
         for cnt in contours:
             x,y,w,h = cv2.boundingRect(cnt)
             heatmap_crop = heatmap[y:y+h,x:x+w]
-            local_max_index = np.argmax(heatmap_crop)
-            center_index = np.unravel_index(local_max_index, (h,w))
+            max_val = np.argmax(heatmap_crop)
+            local_max_index_median = np.median(np.argwhere(heatmap_crop >= threshold)).astype(np.uint8)
+            center_index = np.unravel_index(local_max_index_median, (h,w))
             local_max = heatmap_crop[center_index[0], center_index[1]]
             y_for_bBox = center_index[0] + y - 20
             x_for_bBox = center_index[1] + x - 55
 
             check_val = w*h
 
-            bBoxSizeCheck = heatmap.shape[0] * heatmap.shape[1]
+            bBoxSizeCheck = True#heatmap.shape[0] * heatmap.shape[1]
             bBoxBigEnough = True #check_val * 100 >= bBoxSizeCheck 
-            aspectRatioCheck = (w < 2 * h) & (h < 1.5 * w)
+            aspectRatioCheck = True#(w < 2 * h) & (h < 1.5 * w)
             ret, thresh = cv2.threshold(heatmap_crop.astype(np.uint8), 0, 1,cv2.THRESH_BINARY)
-            bBoxIsFilledCheck = (np.sum(thresh) >= 0.7*check_val)
+            bBoxIsFilledCheck = True#(np.sum(thresh) >= 0.7*check_val)
+            sizeCheck2 = (y>360)
             
             
-            if ((local_max > threshold) & bBoxIsFilledCheck & bBoxBigEnough & aspectRatioCheck):
+            if ((local_max > threshold) & bBoxIsFilledCheck & bBoxBigEnough & aspectRatioCheck & sizeCheck2):
                 cv2.rectangle(image,(x_for_bBox,y_for_bBox),(x_for_bBox+150,y_for_bBox+100),(0,0,255),2)
         return image
 

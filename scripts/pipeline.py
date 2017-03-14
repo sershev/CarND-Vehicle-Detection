@@ -10,7 +10,7 @@ def pipeline(frame):
 	return result
 
 
-clip = VideoFileClip(video_to_process)
+clip = VideoFileClip(video_to_process)#.subclip(35, 40)
 video_output = "out_" + video_to_process
 frame = clip.fl_image(pipeline)
 

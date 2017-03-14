@@ -63,8 +63,8 @@ def test(image_name):
 #from pycallgraph.output import GraphvizOutput
 
 #with PyCallGraph(output=GraphvizOutput()):
-test("test1.jpg")
-test("test2.jpg")
-test("test3.jpg")
-test("test4.jpg")
+#test("test1.jpg")
+#test("test2.jpg")
+#test("test3.jpg")
+#test("test4.jpg")
 
