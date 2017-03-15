@@ -113,7 +113,7 @@ class CarDetector:
     def detect_multiscale(self, image, scale=1.05, min_sliding_window=(32,32), max_sliding_window=(256,256)):
         all_window_rect_points = []
         while ((min_sliding_window[0] <= max_sliding_window[0]) & (min_sliding_window[1] <= max_sliding_window[1])):
-            stride = (int)(min_sliding_window[0]/2)
+            stride = (int)(min_sliding_window[0]/3)
             bBoxes = self.detect(image, object_size=min_sliding_window, stride=stride)
             all_window_rect_points.append(bBoxes)
             min_sliding_window = (int(min_sliding_window[0] * scale), int(min_sliding_window[1] * scale))
@@ -121,7 +121,7 @@ class CarDetector:
 
 
     def detect_full_pipeline(self, rgb_image, min_sliding_window=(64,64), max_sliding_window=(256,256)):
-        bBoxes = self.detect_multiscale(rgb_image, scale=1.25, min_sliding_window=min_sliding_window, max_sliding_window=max_sliding_window)
+        bBoxes = self.detect_multiscale(rgb_image, scale=1.15, min_sliding_window=min_sliding_window, max_sliding_window=max_sliding_window)
 
         heatmap = CarDetector.get_heatmap(bBoxes, rgb_image.shape[0:2])
         heatmap_contours = CarDetector.get_countours_of_heatmap(heatmap)
@@ -148,7 +148,7 @@ class CarDetector:
         output = CarDetector.heatmap_contours_to_bBoxes(rgb_image, contours, combined_heatmap)
         self.frame_counter = self.frame_counter + 1
         #display_image(output)
-        #compare_before_after(combined_heatmap, output, "Heatmap", "Output image")
+        #compare_before_after(heatmap, output, "Heatmap", "Output image")
 
         return output
 

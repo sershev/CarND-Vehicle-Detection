@@ -77,7 +77,9 @@ I trained a an SVM using rbf kernel. The code for training is in `scripts/detect
 I decided to search in the bottom half of the image (with a bit padding at most down, since there is a part of own car). The sliding window increeses each step by a percentage value until it becomes maximal size. For window overlapping I choose 50%. The code for this is in `scripts/detector.py` in `detect_multiscale()` method of `CarDetector` class. 
 
 ####Update
- * I decreased scale factor, so more different scales are used.
+ * I decreased scale factor (125% isntead of 150%), so more different scales are used.
+ * With a scale factor less than 125% the results would be even better, but the speed would be slower.
+ * Window overlapping is now 66%.
 
 As result we het image like following:
 
